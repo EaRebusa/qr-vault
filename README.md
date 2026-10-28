@@ -9,20 +9,39 @@ A lightweight, zero-knowledge, 100% offline Chromium browser extension (Manifest
 
 ---
 
-## Installation & Availability
+## Quick Install (No Coding / Node.js Required)
 
-### Chrome Web Store (Coming Soon)
-*Currently under review.* Once approved, you can search for **Personal Secure QR Scanner & TOTP Vault** (or **QR Vault**) directly on the [Chrome Web Store](https://chromewebstore.google.com/).
+1. **[Download the Latest Release (`qr-vault-extension.zip`)](https://github.com/EaRebusa/qr-vault/releases/latest/download/qr-vault-extension.zip)**
+2. Unzip the downloaded file into a folder on your computer.
+3. In Chrome, Brave, or Edge, go to `chrome://extensions`.
+4. Turn on **Developer mode** (toggle in the top-right corner).
+5. Click **Load unpacked** (top-left button) and select the unzipped folder.
+6. Pin **QR Vault** from the puzzle icon on your browser toolbar!
 
-### Manual Installation (Use Right Now)
-You can load the extension directly into any Chromium browser (Chrome, Brave, Edge, Opera, Vivaldi) in under 30 seconds:
+---
 
-1. Clone or download this repository.
-2. Run `npm install && npm run build` (or download the pre-built `dist/` folder from [Releases](../../releases)).
-3. Open your browser and navigate to `chrome://extensions`.
-4. Toggle on **Developer mode** in the top-right corner.
-5. Click **Load unpacked** (top-left button) and select the `dist/` directory.
-6. Pin **QR Vault** to your browser toolbar.
+## Chrome Web Store (Coming Soon)
+*Currently under preparation.* In the future, you will also be able to install directly via the [Chrome Web Store](https://chromewebstore.google.com/) with automatic updates.
+
+---
+
+## Build from Source (For Developers)
+
+```bash
+# Clone the repository
+git clone https://github.com/EaRebusa/qr-vault.git
+cd qr-vault
+
+# Install dependencies
+npm install
+
+# Run unit tests
+npm test
+
+# Build production bundle
+npm run build
+```
+Load the generated `dist/` directory via `chrome://extensions` as an unpacked extension.
 
 ---
 
