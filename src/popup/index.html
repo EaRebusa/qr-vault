@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Scanner & TOTP Vault</title>
+  <link rel="stylesheet" href="./popup.css" />
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="logo-group">
+      <svg class="logo-icon" viewBox="0 0 24 24">
+        <path d="M4 4h6v6H4V4zm2 2v2h2V6H6zm8-2h6v6h-6V4zm2 2v2h2V6h-2zM4 14h6v6H4v-6zm2 2v2h2v-2H6zm10 0h2v2h-2v-2zm-2 2h2v2h-2v-2zm4 0h2v2h-2v-2zm-2-4h2v2h-2v-2zm4 4h2v2h-2v-2zM8 8h1v1H8V8zm1-1h1v1H9V7z"/>
+      </svg>
+      <h1>QR Vault</h1>
+    </div>
+    <div class="header-status">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text">Locked</span>
+    </div>
+  </header>
+
+  <!-- Auth Screen (Unlock / Setup Master Password) -->
+  <section id="auth-section" class="lock-screen-container">
+    <svg class="lock-icon-large" viewBox="0 0 24 24">
+      <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+    </svg>
+    <div id="auth-title" class="lock-title">Unlock Secure Vault</div>
+    <div id="auth-desc" class="lock-desc">Enter your master password or PIN to unlock your 2FA keys.</div>
+
+    <div id="auth-alert" class="auth-alert"></div>
+
+    <form id="auth-form" autocomplete="off">
+      <input type="password" id="auth-password" placeholder="Master Password or PIN (min 4 chars)" required />
+      <div id="confirm-password-group" style="display: none;">
+        <input type="password" id="auth-password-confirm" placeholder="Confirm Master Password" />
+      </div>
+      <button type="submit" id="auth-submit-btn" class="btn btn-primary">Unlock</button>
+    </form>
+  </section>
+
+  <!-- Main App (Tabs & Content) -->
+  <div id="app-section" style="display: none;">
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-tab="vault">Vault</button>
+      <button class="tab-btn" data-tab="scan">Scan</button>
+      <button class="tab-btn" data-tab="generate">Generate</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
+    </nav>
+
+    <main>
+      <!-- Vault Tab -->
+      <section id="tab-vault" class="view-section active">
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <input type="text" id="vault-search-input" placeholder="Search accounts..." style="margin-bottom: 0;" />
+          <button id="vault-add-manual-toggle" class="btn btn-secondary" style="width: auto; padding: 0 12px;" title="Add account manually">+</button>
+        </div>
+
+        <!-- Manual Add Account Form (Collapsible) -->
+        <div id="manual-add-card" class="card" style="display: none;">
+          <div style="font-weight: 600; margin-bottom: 8px;">Add TOTP Account</div>
+          <input type="text" id="manual-label" placeholder="Account Name (e.g. user@example.com)" />
+          <input type="text" id="manual-issuer" placeholder="Issuer (e.g. GitHub, Google)" />
+          <input type="text" id="manual-secret" placeholder="Secret Key (Base32)" />
+          <div style="display: flex; gap: 8px;">
+            <button id="manual-save-btn" class="btn btn-primary">Save Account</button>
+            <button id="manual-cancel-btn" class="btn btn-secondary">Cancel</button>
+          </div>
+        </div>
+
+        <div id="vault-items-container">
+          <div class="vault-empty-state">No accounts found. Use the Scan tab to snip a QR code or click + to add one.</div>
+        </div>
+      </section>
+
+      <!-- Scan Tab -->
+      <section id="tab-scan" class="view-section">
+        <div class="scan-actions">
+          <button id="snip-active-tab-btn" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M4 4h3v2H5v2H3V4h1zm17 0h-3v2h2v2h2V4h-1zM3 20v-4h2v2h2v2H3zm18 0h-4v-2h2v-2h2v4zM11 7h2v4h4v2h-4v4h-2v-4H7v-2h4V7z"/>
+            </svg>
+            Snip Active Tab
+          </button>
+        </div>
+
+        <div id="scan-status" class="auth-alert" style="display: none;"></div>
+
+        <div id="decoded-card" class="card decoded-card">
+          <div style="font-weight: 600; margin-bottom: 6px; font-size: 12px; color: var(--accent);">Decoded QR Result</div>
+          <div id="decoded-raw-text" class="decoded-text"></div>
+          
+          <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+            <button id="copy-decoded-btn" class="btn btn-secondary">Copy to Clipboard</button>
+          </div>
+
+          <!-- OTP Preview if detected -->
+          <div id="otp-detected-panel" style="display: none; border-top: 1px solid var(--border-color); padding-top: 10px;">
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Detected TOTP Account:</div>
+            <div id="otp-detected-summary" style="font-weight: 600; margin-bottom: 8px;"></div>
+            <button id="save-scanned-otp-btn" class="btn btn-primary">Save to Secure Vault</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Generate Tab -->
+      <section id="tab-generate" class="view-section">
+        <div class="card">
+          <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Input Text or URL</label>
+          <textarea id="qr-gen-input" rows="3" placeholder="Type or paste text to generate QR code..."></textarea>
+          
+          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 11px; color: var(--text-muted);">Error Correction:</span>
+            <select id="qr-gen-ecc" style="width: auto; margin-bottom: 0; padding: 4px 8px;">
+              <option value="M" selected>Medium (15%)</option>
+              <option value="H">High (30%)</option>
+            </select>
+          </div>
+
+          <div class="qr-preview-wrapper">
+            <canvas id="qr-gen-canvas"></canvas>
+          </div>
+
+          <button id="download-qr-btn" class="btn btn-secondary">Download PNG</button>
+        </div>
+      </section>
+
+      <!-- Settings Tab -->
+      <section id="tab-settings" class="view-section">
+        <div class="card">
+          <div class="settings-group">
+            <div class="settings-label">Security & Session</div>
+            <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Auto-Lock Timeout (In-Memory Session)</label>
+            <select id="auto-lock-select">
+              <option value="0">Immediately on Popup Close</option>
+              <option value="5">After 5 Minutes</option>
+              <option value="15" selected>After 15 Minutes (Default)</option>
+              <option value="60">After 1 Hour</option>
+              <option value="-1">On Browser Exit</option>
+            </select>
+            <button id="lock-vault-btn" class="btn btn-secondary" style="margin-bottom: 8px;">Lock Vault Immediately</button>
+          </div>
+
+          <div class="settings-group">
+            <div class="settings-label">Backup & Restore</div>
+            <button id="export-vault-btn" class="btn btn-secondary" style="margin-bottom: 8px;">Export Encrypted Vault (JSON)</button>
+            <input type="file" id="import-vault-file" accept=".json" style="display: none;" />
+            <button id="import-vault-btn" class="btn btn-secondary">Import Encrypted Vault (JSON)</button>
+          </div>
+
+          <div class="settings-group" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 14px;">
+            <div class="settings-label" style="color: var(--danger);">Danger Zone</div>
+            <button id="wipe-vault-btn" class="btn btn-danger">Reset / Wipe Vault</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="./popup.controller.ts"></script>
+</body>
+</html>
